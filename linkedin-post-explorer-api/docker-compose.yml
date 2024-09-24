@@ -1,12 +1,15 @@
 services:
   lambda:
-    entrypoint: python -c "from linkedin_post_explorer.aws_lambda_handler import handler; handler(None, None)"
-    # command: [ "index.handler" ]
+    # entrypoint: python -c "from linkedin_post_explorer.aws_lambda_handler import handler; handler(None, None)"
+    # command: [ "sqlite_vec_playground.handler" ]
     build:
       context: .
       dockerfile: Dockerfile
     image: linkedin-lambda # assigns a name to the built image
     platform: linux/amd64
+    volumes:
+      # aws credentials
+      - ~/.aws:/root/.aws
     # volumes:
     #   - ./src/linkedin_post_explorer/:/function/linkedin_post_explorer
     ports:
@@ -14,6 +17,8 @@ services:
     environment:
       AWS_LAMBDA_FUNCTION_TIMEOUT: 900
       AWS_LAMBDA_FUNCTION_MEMORY_SIZE: 128
+      S3_POSTS_DB_ASSET_PATH: s3://cdk-hnb659fds-assets-307946641966-us-west-2/e0a9df5283c87a46e33b8915f5fcdf91dc3b14e8e5e0e6e4efa271285d4bbadf.db
       BUCKET_NAME: linkedin-post-explorer-data
+      AWS_PROFILE: linkedin-post-explorer
 
 # could mock S3 with localstack/moto; or just provide creds

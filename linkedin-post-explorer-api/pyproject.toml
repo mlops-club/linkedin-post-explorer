@@ -9,17 +9,7 @@ authors = [{ name = "<your name>", email = "some-email@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.7"
 license = { text = "MIT" }
-dependencies = [
-    "fastapi[slim]",
-    "pydantic",
-    "sqlalchemy",
-    "sqlite-vec",
-    "sqlmodel",
-    "pydantic",
-    "rich",
-    "sqlparse",
-    "boto3",
-]
+dependencies = ["fastapi-slim", "pydantic", "boto3"]
 classifiers = ["Programming Language :: Python :: 3"]
 keywords = ["one", "two"]
 

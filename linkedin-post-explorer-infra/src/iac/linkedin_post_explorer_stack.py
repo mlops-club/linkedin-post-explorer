@@ -1,10 +1,15 @@
 import aws_cdk as cdk
 from aws_cdk import Stack  # Duration,; aws_sqs as sqs,
 from aws_cdk import aws_lambda as _lambda
-from aws_cdk import aws_lambda_python_alpha as lambda_python
 from aws_cdk import aws_s3 as s3
-from aws_cdk.aws_ecr_assets import DockerImageAsset
+from aws_cdk import aws_s3_assets as s3_assets
 from constructs import Construct
+
+from pathlib import Path
+
+THIS_DIR = Path(__file__).parent
+DOCKER_IMAGE_DIR = (THIS_DIR / "../../../linkedin-post-explorer-api").resolve()
+POSTS_DB_FPATH = (THIS_DIR / "../../../output/posts.db").resolve()
 
 
 class LinkedinPostExplorerStack(Stack):
@@ -17,38 +22,29 @@ class LinkedinPostExplorerStack(Stack):
             "LinkedinPostExplorerBucket",
         )
 
-        fn = lambda_python.PythonFunction(
-            self,
-            "LinkedinPostExplorerLambda",
-            entry="assets/linkedin-post-explorer-api/src",
-            index="linkedin_post_explorer/aws_lambda_handler.py",
-            handler="handler",
-            runtime=_lambda.Runtime.PYTHON_3_11,
-            architecture=_lambda.Architecture.X86_64,
-            environment={
-                "BUCKET_NAME": bucket.bucket_name,
-            },
-            layers=[
-                lambda_python.PythonLayerVersion(
-                    self,
-                    "LinkedinPostExplorerLayer",
-                    entry="assets/linkedin-post-explorer-api/",
-                    compatible_runtimes=[_lambda.Runtime.PYTHON_3_11],
-                    compatible_architectures=[_lambda.Architecture.X86_64],
-                    bundling=lambda_python.BundlingOptions(
-                        image=cdk.DockerImage.from_registry("public.ecr.aws/lambda/python:3.11"),
-                        platform="linux/amd64",
-                        entrypoint=[
-                            "bash",
-                            "-c",
-                            "pip install -r requirements.txt -t /asset-output/python && cp -au . /asset-output/python",
-                        ],
-                    ),
-                )
-            ],
+        # Upload posts.db to the S3 bucket under the 'posts' subfolder
+        asset = s3_assets.Asset(self, "PostsDBAsset",
+            path=str(POSTS_DB_FPATH),
         )
 
+        # Define the Lambda function using the Docker image
+        fn = _lambda.DockerImageFunction(
+            self,
+            "LinkedinPostExplorerLambda",
+            code=_lambda.DockerImageCode.from_image_asset(directory=str(DOCKER_IMAGE_DIR)),
+            environment={
+                "S3_POSTS_DB_ASSET_PATH": asset.s3_object_url,
+            }
+        )
+        url = fn.add_function_url(auth_type=_lambda.FunctionUrlAuthType.NONE)
+
         bucket.grant_read_write(fn.role)
+        asset.grant_read(fn.role)
+
+        # output the asset path and bucket name
+        cdk.CfnOutput(self, "PostsDBAssetPath", value=asset.s3_object_url)
+        cdk.CfnOutput(self, "BucketName", value=bucket.bucket_name)
+        cdk.CfnOutput(self, "FunctionUrl", value=url.url)
 
 
 # new python.PythonFunction(this, 'MyFunction', {
